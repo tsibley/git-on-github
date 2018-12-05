@@ -98,11 +98,16 @@ def remote_github_repo(url = None):
 
     parsed = urlparse(url)
 
-    # Any scheme pointed at github.com
-    is_github_url = parsed.netloc == "github.com"
+    # If the parsed URL contains a path but no netloc (host), then it's
+    # probably a scheme-less SSH location, e.g. github.com:foo/bar or
+    # git@github.com:foo/bar.  Reparse with the ssh:// scheme added and first
+    # colon turned into a slash.
+    if parsed.path and not parsed.netloc:
+        url = f"ssh://{url.replace(':', '/', 1)}"
+        parsed = urlparse(url)
 
-    # Implicit SSH location, e.g. github.com:foo/bar
-    is_github_bare_ssh = parsed.scheme == "github.com" and parsed.netloc == ""
+    # Any scheme pointed at github.com
+    is_github_url = parsed.netloc in ["github.com", "git@github.com"]
 
     if not is_github_url and not is_github_bare_ssh:
         raise ValueError(f"remote url <{url}> is not github ({parsed})")
