@@ -88,7 +88,21 @@ def revparse(*args):
     return capture_output(["git", "rev-parse", *args])
 
 
-def remote_url(name = "origin"):
+def current_branch():
+    return capture_output(["git", "symbolic-ref", "--short", "HEAD"])[0]
+
+
+def branch_remote(name = None):
+    if name is None:
+        name = current_branch()
+
+    return capture_output(["git", "config", f"branch.{name}.remote"])[0]
+
+
+def remote_url(name = None):
+    if name is None:
+        name = branch_remote()
+
     return capture_output(["git", "remote", "get-url", name])[0]
 
 
