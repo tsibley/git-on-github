@@ -1,0 +1,148 @@
+#!/usr/bin/env python3
+"""
+usage: git on-github [<commit>] [<path>] [+<line>]
+       git on-github --help
+
+Open the given repository, commit, or path on GitHub.
+
+Written by Thomas Sibley <https://tsibley.net>.
+"""
+import argparse
+import re
+import subprocess
+import webbrowser
+from itertools import filterfalse, tee
+from sys import argv, exit
+from urllib.parse import urlparse
+
+
+def main(args):
+    doc_paragraphs = __doc__.strip("\n").split("\n\n")
+
+    parser = argparse.ArgumentParser(
+        "git on-github",
+        usage           = ltrim("usage: ", doc_paragraphs[0]),
+        description     = "\n\n".join(doc_paragraphs[1:-1]),
+        epilog          = doc_paragraphs[-1],
+        formatter_class = argparse.RawDescriptionHelpFormatter)
+
+    parser.add_argument("args", nargs = "*")
+
+    opts = parser.parse_args(args)
+
+    repo = remote_github_repo()
+    ref  = None
+    path = None
+    line = None
+
+    if opts.args:
+        def is_line_number(arg):
+            return re.match(r"^\+\d+$", arg)
+
+        remaining_args, lines = map(list, partition(is_line_number, opts.args))
+
+        refs  = revparse("--revs-only", "--symbolic", *remaining_args)
+        paths = revparse("--no-revs", "--no-flags", *remaining_args)
+
+        def select_one(name, items):
+            if not items:
+                return None
+            elif len(items) == 1:
+                return items[0]
+            elif len(items) > 1:
+                raise ValueError(f"Only one {name} may be provided.")
+
+        ref  = select_one("ref",  refs)
+        path = select_one("path", paths)
+        line = select_one("line", lines)
+
+    open_github(repo, ref = ref, path = path, line = ltrim("+", line))
+
+    return 0
+
+
+def open_github(repo, ref = None, path = None, line = None):
+    if ref is None and path is not None:
+        ref = "master"
+
+    if path is None and line is not None:
+        raise ValueError("line may only be provided if path is as well")
+
+    urls = {
+        (False, False, False): f"https://github.com/{repo}",
+        (True, False, False):  f"https://github.com/{repo}/commit/{ref}",
+        (True, True, False):   f"https://github.com/{repo}/tree/{ref}/{path}",
+        (True, True, True):    f"https://github.com/{repo}/tree/{ref}/{path}#L{line}",
+    }
+
+    condition = (*map(lambda x: x is not None, (ref, path, line)),)
+    url = urls[condition]
+
+    webbrowser.open_new_tab(url)
+
+
+def revparse(*args):
+    return capture_output(["git", "rev-parse", *args])
+
+
+def remote_url(name = "origin"):
+    return capture_output(["git", "remote", "get-url", name])[0]
+
+
+def remote_github_repo(url = None):
+    if url is None:
+        url = remote_url()
+
+    parsed = urlparse(url)
+
+    # Any scheme pointed at github.com
+    is_github_url = parsed.netloc == "github.com"
+
+    # Implicit SSH location, e.g. github.com:foo/bar
+    is_github_bare_ssh = parsed.scheme == "github.com" and parsed.netloc == ""
+
+    if not is_github_url and not is_github_bare_ssh:
+        raise ValueError(f"remote url <{url}> is not github ({parsed})")
+
+    return rtrim(".git", parsed.path.lstrip("/"))
+
+
+def capture_output(argv):
+    """
+    Run the command specified by the argument list and return a list of output
+    lines.
+
+    This wrapper around subprocess.run() exists because its own capture_output
+    parameter wasn't added until Python 3.7, and I'm aiming for compat with 3.5.
+    """
+    result = subprocess.run(
+        argv,
+        stdout = subprocess.PIPE,
+        stderr = subprocess.DEVNULL,
+        check  = True)
+
+    return result.stdout.decode("utf-8").splitlines()
+
+
+def ltrim(prefix, string):
+    return re.sub('^' + re.escape(prefix), '', string)
+
+
+def rtrim(suffix, string):
+    return re.sub(re.escape(suffix) + '$', '', string)
+
+
+def partition(predicate, iterable):
+    """
+    Use a predicate to partition entries into false entries and true entries.
+
+    From the itertools documentation of common, language-agnostic utilities
+    that unfortunately aren't included in Python's standard library.
+    """
+    # partition(is_odd, range(10)) --> 0 2 4 6 8   and  1 3 5 7 9
+    t1, t2 = tee(iterable)
+    return filterfalse(predicate, t1), filter(predicate, t2)
+
+
+if __name__ == "__main__":
+    exit(main(argv[1:]))
