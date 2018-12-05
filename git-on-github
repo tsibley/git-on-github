@@ -56,7 +56,10 @@ def main(args):
         path = select_one("path", paths)
         line = select_one("line", lines)
 
-    open_github(repo, ref = ref, path = path, line = ltrim("+", line))
+        if line:
+            line = ltrim("+", line)
+
+    open_github(repo, ref = ref, path = path, line = line)
 
     return 0
 
