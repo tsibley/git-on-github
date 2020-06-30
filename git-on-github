@@ -72,6 +72,7 @@ def open_github(repo, ref = None, path = None, line = None):
         raise ValueError("line may only be provided if path is as well")
 
     urls = {
+        # ref, path, line
         (False, False, False): f"https://github.com/{repo}",
         (True, False, False):  f"https://github.com/{repo}/commit/{ref}",
         (True, True, False):   f"https://github.com/{repo}/tree/{ref}/{path}",
