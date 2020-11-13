@@ -131,7 +131,7 @@ def remote_github_repo(url = None):
     # Any scheme pointed at github.com
     is_github_url = parsed.netloc in ["github.com", "git@github.com"]
 
-    if not is_github_url and not is_github_bare_ssh:
+    if not is_github_url:
         raise ValueError(f"remote url <{url}> is not github ({parsed})")
 
     return rtrim(".git", parsed.path.lstrip("/"))
