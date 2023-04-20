@@ -71,6 +71,9 @@ def open_github(repo, ref = None, path = None, line = None):
     if path is None and line is not None:
         raise ValueError("line may only be provided if path is as well")
 
+    if path is not None:
+        path = revparse("--show-prefix")[0] + path
+
     urls = {
         # ref, path, line
         (False, False, False): f"https://github.com/{repo}",
