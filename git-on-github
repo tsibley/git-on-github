@@ -66,7 +66,7 @@ def main(args):
 
 def open_github(repo, ref = None, path = None, line = None):
     if ref is None and path is not None:
-        ref = current_upstream_branch()
+        ref = current_upstream_branch() or current_rev()
 
     if path is None and line is not None:
         raise ValueError("line may only be provided if path is as well")
@@ -93,12 +93,22 @@ def revparse(*args):
 
 
 def current_branch():
-    return capture_output(["git", "symbolic-ref", "--short", "HEAD"])[0]
+    try:
+        return capture_output(["git", "symbolic-ref", "--short", "HEAD"])[0]
+    except subprocess.CalledProcessError:
+        return None
+
+
+def current_rev():
+    return revparse("--revs-only", "HEAD")[0]
 
 
 def current_upstream_branch(name = None):
     if name is None:
         name = current_branch()
+
+    if name is None:
+        return None
 
     return ltrim("refs/heads/", capture_output(["git", "config", f"branch.{name}.merge"])[0])
 
@@ -107,12 +117,15 @@ def branch_remote(name = None):
     if name is None:
         name = current_branch()
 
+    if name is None:
+        return None
+
     return capture_output(["git", "config", f"branch.{name}.remote"])[0]
 
 
 def remote_url(name = None):
     if name is None:
-        name = branch_remote()
+        name = branch_remote() or "origin"
 
     return capture_output(["git", "remote", "get-url", name])[0]
 
