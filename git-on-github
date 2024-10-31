@@ -12,7 +12,7 @@ import re
 import subprocess
 import webbrowser
 from itertools import filterfalse, tee
-from sys import argv, exit
+from sys import argv, exit, stderr
 from urllib.parse import urlparse
 
 
@@ -124,7 +124,13 @@ def branch_remote(name = None):
     if name is None:
         return None
 
-    return capture_output(["git", "config", f"branch.{name}.remote"])[0]
+    remote = capture_output(["git", "config", "--default", "", f"branch.{name}.remote"])[0]
+
+    if not remote:
+        print(f"Warning: No remote set for current branch ({name}); using default remote instead", file = stderr)
+        return None
+
+    return remote
 
 
 def remote_url(name = None):
