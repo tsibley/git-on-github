@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-usage: git on-github [<commit>] [<path>] [+<line>]
+usage: git on-github [--url] [<commit>] [<path>] [+<line>]
        git on-github --help
 
-Open the given repository, commit, or path on GitHub.
+Open (or report the URL of) the given repository, commit, or path on GitHub.
 
 Written by Thomas Sibley <https://tsibley.net>.
 """
@@ -27,6 +27,7 @@ def main(args):
         formatter_class = argparse.RawDescriptionHelpFormatter)
 
     parser.add_argument("args", nargs = "*")
+    parser.add_argument("--url", action = "store_true", help = "Print the URL instead of opening a web browser.")
 
     opts = parser.parse_args(args)
 
@@ -59,12 +60,17 @@ def main(args):
         if line:
             line = ltrim("+", line)
 
-    open_github(repo, ref = ref, path = path, line = line)
+    url = github_url(repo, ref = ref, path = path, line = line)
+
+    if opts.url:
+        print(url)
+    else:
+        webbrowser.open_new_tab(url)
 
     return 0
 
 
-def open_github(repo, ref = None, path = None, line = None):
+def github_url(repo, ref = None, path = None, line = None):
     if ref is None and path is not None:
         ref = current_upstream_branch() or current_rev()
 
@@ -83,9 +89,7 @@ def open_github(repo, ref = None, path = None, line = None):
     }
 
     condition = (*map(lambda x: x is not None, (ref, path, line)),)
-    url = urls[condition]
-
-    webbrowser.open_new_tab(url)
+    return urls[condition]
 
 
 def revparse(*args):
